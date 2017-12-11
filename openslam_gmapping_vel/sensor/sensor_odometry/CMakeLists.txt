@@ -1,0 +1,4 @@
+add_library(sensor_odometry_vel odometryreading.cpp odometrysensor.cpp)
+target_link_libraries(sensor_odometry_vel sensor_base_vel)
+
+install(TARGETS sensor_odometry_vel DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
