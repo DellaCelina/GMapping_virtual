@@ -113,7 +113,7 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	m_activeAreaComputed=true;
 }
 */
-void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p, const double* readings){
+void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings){
 	if (m_activeAreaComputed)
 		return;
 	OrientedPoint lp=p;
@@ -131,8 +131,8 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	if (lp.y>max.y) max.y=lp.y;
 	
 	/*determine the size of the area*/
-	const double * angle=m_laserAngles+m_initialBeamsSkip;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++){
+	const double * angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<=readings.realReading+readings.real_max; r++, angle++){
 		if (*r>m_laserMaxRange||*r==0.0||isnan(*r)) continue;
 		double d=*r>m_usableRange?m_usableRange:*r;
 		Point phit=lp;
@@ -161,8 +161,8 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	
 	HierarchicalArray2D<PointAccumulator>::PointSet activeArea;
 	/*allocate the active area*/
-	angle=m_laserAngles+m_initialBeamsSkip;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++)
+	angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<readings.realReading+readins.real_max; r++, angle++)
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
@@ -212,7 +212,7 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	m_activeAreaComputed=true;
 }
 
-double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, const double* readings){
+double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings){
 	if (!m_activeAreaComputed)
 		computeActiveArea(map, p, readings);
 		
@@ -226,9 +226,9 @@ double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, co
 	IntPoint p0=map.world2map(lp);
 	
 	
-	const double * angle=m_laserAngles+m_initialBeamsSkip;
+	const double * angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
 	double esum=0;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++)
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<=readings.realReading+real_max; r++, angle++)
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
@@ -334,7 +334,7 @@ double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, 
 	return currentScore;
 }
 
-double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
+double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const ReadingData& readings) const{
 	double bestScore=-1;
 	OrientedPoint currentPose=init;
 	double currentScore=score(map, currentPose, readings);
