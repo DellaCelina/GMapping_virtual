@@ -418,9 +418,11 @@ void GridSlamProcessor::setMotionModelParameters
       }
       RangeReading* reading_copy = 
               new RangeReading(reading.size(),
-                                reading.getMinBeamIdx(),
-                                reading.getMaxBeamIdx(),
-                                realReading,
+                                  reading.getMinBeamIdx(),
+                                  reading.getMaxBeamIdx(),
+                                  reading.getMinVirtualBeamIdx(),
+                                  reading.getMaxVirtualBeamIdx(),
+                                  realReading,
                                static_cast<const RangeSensor*>(reading.getSensor()),
                                reading.getTime());
 
