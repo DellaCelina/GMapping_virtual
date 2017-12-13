@@ -65,6 +65,8 @@ class SlamGMapping
     // The angles in the laser, going from -x to x (adjustment is made to get the laser between
     // symmetrical bounds as that's what gmapping expects)
     std::vector<double> laser_angles_;
+    std::vector<double> laser_angles_sin_;
+    std::vector<double> laser_angles_cos_;
     // The pose, in the original laser frame, of the corresponding centered laser with z facing up
     tf::Stamped<tf::Pose> centered_laser_pose_;
     // Depending on the order of the elements in the scan and the orientation of the scan frame,
@@ -105,7 +107,7 @@ class SlamGMapping
     double computePoseEntropy();
     
 
-    bool searchLineFromEdge(const sensor_msgs::LaserScan& scan, const int dir, double& length, int& points);
+    bool searchLineFromEdge(const sensor_msgs::LaserScan& scan, const int dir, double outlier_thres, double& length, int& points_num);
     double distPoint2Line(double line_x1, double line_y1, double line_x2, double line_y2, double point_x1, double point_y1);
 
     // Parameters used by GMapping

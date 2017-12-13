@@ -461,6 +461,8 @@ SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
   // Compute the angles of the laser from -x to x, basically symmetric and in increasing order
   // laser_angles_.resize(scan.ranges.size());
   laser_angles_.resize(gsp_laser_beam_count_);
+  laser_angles_sin_.resize(gsp_laser_beam_count_);
+  laser_angles_cos_.resize(gsp_laser_beam_count_);
   // Make sure angles are started so that they are centered
   double theta = - std::fabs(scan.angle_min - scan.angle_max)/2;
 
@@ -477,6 +479,8 @@ SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
   for(unsigned int i=0; i<gsp_laser_beam_count_; ++i)
   {
     laser_angles_[i]=theta;
+    laser_angles_sin_[i]=sin(theta);
+    laser_angles_cos_[i]=cos(theta);
     theta += std::fabs(scan.angle_increment);
   }
 
@@ -584,18 +588,14 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
   // if(scan.ranges.size() != gsp_laser_beam_count_)
   //   return false;
 
-  double right_line_length;
-  double left_line_length;
-  int right_line_points_num;
-  int left_line_points_num;
-  bool right_line_found;
-  bool left_line_found;
-  right_line_found = searchLineFromEdge(scan, 1, right_line_length, right_line_points_num);
-  left_line_found = searchLineFromEdge(scan, -1, left_line_length, left_line_points_num);
+  double right_line_length = 0, left_line_length = 0;
+  int right_line_points_num = 0, left_line_points_num = 0;
+  bool right_line_found, left_line_found;
+
+  right_line_found = searchLineFromEdge(scan, 1, 0.004, right_line_length, right_line_points_num);
+  left_line_found = searchLineFromEdge(scan, -1, 0.004, left_line_length, left_line_points_num);
+
   printf("left_line_length, right_line_length : %lf, %lf\n\n", left_line_length, right_line_length);
-
-
-
 
 
   // GMapping wants an array of doubles...
@@ -604,7 +604,7 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
   // If the angle increment is negative, we have to invert the order of the readings.
   if (do_reverse_range_)
   {
-    assert(0);
+    assert(0);//not implemented
     ROS_DEBUG("Inverting scan");
     // int num_ranges = scan.ranges.size();
     int num_ranges = gsp_laser_beam_count_;
@@ -619,11 +619,10 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
   }
   else 
   {
-
     int si = 0;
     for(unsigned int i=0; i < gsp_laser_beam_count_; i++){
-      if(i >= min_laser_angles_index_ && i <= max_laser_angles_index_){
-
+      if(i >= min_laser_angles_index_ && i <= max_laser_angles_index_)
+      {
         if(scan.ranges[si] < scan.range_min)
           ranges_double[i] = (double)scan.range_max;
         else
@@ -634,92 +633,122 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
         ranges_double[i] = (double)std::numeric_limits<float>::infinity();
     }
 
-    if(right_line_found && right_line_length > 0.25){
-      double virtual_length = 0.2;
-      double x1, y1, x2, y2;
+
+    double MIN_DETECT_LINE_LENGTH = 0.25;
+    double Square_of_VIRTUAL_LINE_LENGTH = 0.25*0.25;
+
+    if(right_line_found && right_line_length > MIN_DETECT_LINE_LENGTH){
       double r1, th1, r2, th2;
+      double x1, y1, x2, y2;
+      double cth1, sth1, cth2, sth2;
+
       r1 = scan.ranges[0];
       th1 = laser_angles_[min_laser_angles_index_];
+      cth1 = laser_angles_cos_[min_laser_angles_index_];
+      sth1 = laser_angles_sin_[min_laser_angles_index_];
+
       r2 = scan.ranges[right_line_points_num-1];
       th2 = laser_angles_[min_laser_angles_index_+right_line_points_num-1];
-      x1 = r1 * cos(th1);
-      y1 = r1 * sin(th1);
-      x2 = r2 * cos(th2);
-      y2 = r2 * sin(th2);
-      double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
+      cth2 = laser_angles_cos_[min_laser_angles_index_+right_line_points_num-1];
+      sth2 = laser_angles_sin_[min_laser_angles_index_+right_line_points_num-1];
+
+      x1 = r1 * cth1;
+      y1 = r1 * sth1;
+      x2 = r2 * cth2;
+      y2 = r2 * sth2;
+
+      //double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
       //printf("len : %lf, x1:%lf, y1:%lf, x2:%lf, y2:%lf\n", len, x1, y1, x2, y2);
 
-      double a, b;
-      a = atan((r2*sin(th2)-r1*sin(th1))/(r1*cos(th1)-r2*cos(th2)));
+      double a, b;//Constant value of linear equation in polar coordinate system
+      a = atan((r2*sth2-r1*sth1)/(r1*cth1-r2*cth2));
       b = r1*sin(a+th1);
       //printf("a: %lf, b: %lf\n", a, b);
-      double r3, th3, x3, y3;
-      th3 = th1;
+
+      double r3, th3, x3, y3;//for virtual points
       int virtual_points_num = 0;
-      while(1){
+
+      while(1)
+      {
         virtual_points_num++;
         if(min_laser_angles_index_-virtual_points_num < 0)
           break;
-        // th3 -= scan.angle_increment;
+
         th3 = laser_angles_[min_laser_angles_index_-virtual_points_num];
         r3 = b/(sin(th3+a));
-        x3 = r3 * cos(th3);
-        y3 = r3 * sin(th3);
+
+        if(r3 > scan.range_max)
+          break;
+
+        x3 = r3 * laser_angles_cos_[min_laser_angles_index_-virtual_points_num];
+        y3 = r3 * laser_angles_sin_[min_laser_angles_index_-virtual_points_num];
         //printf("r3 : %lf, th3 : %lf, x3:%lf, y3:%lf\n", r3, th3, x3, y3);
 
-        ranges_double[min_laser_angles_index_-virtual_points_num] = r3;
-
-        double len = sqrt((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3));
-        if(len > virtual_length)
+        double S_O_len = (x1-x3)*(x1-x3)+(y1-y3)*(y1-y3);
+        if(S_O_len > Square_of_VIRTUAL_LINE_LENGTH)
           break;
+
+        ranges_double[min_laser_angles_index_-virtual_points_num] = r3;//add virtual value
       }
 
-      printf("virtual_points_num : %d\n", virtual_points_num);
-
+      printf("virtual_points_num : %d\n", virtual_points_num-1);
     }
 
-    if(left_line_found && left_line_length > 0.25){
-      double virtual_length = 0.2;
-      double x1, y1, x2, y2;
+    if(left_line_found && left_line_length > MIN_DETECT_LINE_LENGTH){
       double r1, th1, r2, th2;
+      double x1, y1, x2, y2;
+      double cth1, sth1, cth2, sth2;
+
       r1 = scan.ranges[scan.ranges.size()-1];
       th1 = laser_angles_[max_laser_angles_index_];
+      cth1 = laser_angles_cos_[max_laser_angles_index_];
+      sth1 = laser_angles_sin_[max_laser_angles_index_];
+
       r2 = scan.ranges[scan.ranges.size()-1 - (left_line_points_num-1)];
       th2 = laser_angles_[max_laser_angles_index_ - (left_line_points_num-1)];
-      x1 = r1 * cos(th1);
-      y1 = r1 * sin(th1);
-      x2 = r2 * cos(th2);
-      y2 = r2 * sin(th2);
-      double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
+      cth2 = laser_angles_cos_[max_laser_angles_index_ - (left_line_points_num-1)];
+      sth2 = laser_angles_sin_[max_laser_angles_index_ - (left_line_points_num-1)];
+
+      x1 = r1 * cth1;
+      y1 = r1 * sth1;
+      x2 = r2 * cth2;
+      y2 = r2 * sth2;
+
+      //double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
       //printf("len : %lf, x1:%lf, y1:%lf, x2:%lf, y2:%lf\n", len, x1, y1, x2, y2);
 
-      double a, b;
-      a = atan((r2*sin(th2)-r1*sin(th1))/(r1*cos(th1)-r2*cos(th2)));
+      double a, b;//Constant value of linear equation in polar coordinate system
+      a = atan((r2*sth2-r1*sth1)/(r1*cth1-r2*cth2));
       b = r1*sin(a+th1);
       //printf("a: %lf, b: %lf\n", a, b);
-      double r3, th3, x3, y3;
-      th3 = th1;
+
+      double r3, th3, x3, y3;//for virtual points
       int virtual_points_num = 0;
-      while(1){
+
+      while(1)
+      {
         virtual_points_num++;
         if(max_laser_angles_index_+virtual_points_num > gsp_laser_beam_count_ - 1)
           break;
-        // th3 += scan.angle_increment;
+
         th3 = laser_angles_[max_laser_angles_index_+virtual_points_num];
         r3 = b/(sin(th3+a));
-        x3 = r3 * cos(th3);
-        y3 = r3 * sin(th3);
+
+        if(r3 > scan.range_max)
+          break;
+
+        x3 = r3 * laser_angles_cos_[max_laser_angles_index_+virtual_points_num];
+        y3 = r3 * laser_angles_sin_[max_laser_angles_index_+virtual_points_num];
         //printf("r3 : %lf, th3 : %lf, x3:%lf, y3:%lf\n", r3, th3, x3, y3);
 
-        ranges_double[max_laser_angles_index_+virtual_points_num] = r3;
-
-        double len = sqrt((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3));
-        if(len > virtual_length)
+        double S_O_len = (x1-x3)*(x1-x3)+(y1-y3)*(y1-y3);
+        if(S_O_len > Square_of_VIRTUAL_LINE_LENGTH)
           break;
+
+        ranges_double[max_laser_angles_index_+virtual_points_num] = r3;//add virtual value
       }
 
-      printf("virtual_points_num : %d\n", virtual_points_num);
-
+      printf("virtual_points_num : %d\n", virtual_points_num-1);
     }
 
     virtual_scan_.ranges.clear();
@@ -773,14 +802,17 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
 
 
 
-
-bool SlamGMapping::searchLineFromEdge(const sensor_msgs::LaserScan& scan, const int dir, double& length, int& points)
+//dir == 1 : search right edge to left side
+//dir == -1 : search left edge to right side
+//outlier_thres : max outlier point distance from line
+//length : line length
+//points_num : line point num, min value is 3
+bool SlamGMapping::searchLineFromEdge(const sensor_msgs::LaserScan& scan, const int dir, double outlier_thres, double& length, int& points_num)
 {
-  int start_scan_index;
-  int start_angles_index;
-  int index, index_offset;
-  double outlier_thres = 0.004;
-  int break_search = 0;
+  int start_scan_index;//for "scan.ranges" array
+  int start_angles_index;//for "laser_angles_" array
+  int index_offset;//for convert index
+  bool break_search = false;
 
   if(dir == 1)
   {
@@ -793,21 +825,19 @@ bool SlamGMapping::searchLineFromEdge(const sensor_msgs::LaserScan& scan, const 
     start_angles_index = max_laser_angles_index_;
   }
   else
-    assert(0);
+    return false;//wrong dir arg
+
+  //printf("start_scan_index, start_angles_index : %d, %d\n", start_scan_index, start_angles_index);
 
   index_offset = start_angles_index - start_scan_index;
 
-  printf("start_angles_index, start_scan_index : %d, %d\n", start_angles_index, start_scan_index);
-
-  if(!(scan.ranges[start_scan_index] == scan.ranges[start_scan_index]))//check nan
+  if(!(scan.ranges[start_scan_index] == scan.ranges[start_scan_index]))//check range value of edge's point is NaN
     return false;
-  if(!(scan.ranges[start_scan_index+dir] == scan.ranges[start_scan_index+dir]))//check nan
+  if(!(scan.ranges[start_scan_index+dir] == scan.ranges[start_scan_index+dir]))//check next range value is NaN
     return false;
 
-  // double line_x1 = scan.ranges[index] * gsp_laser_ -> beams()[index].c;
-  // double line_y1 = scan.ranges[index] * gsp_laser_ -> beams()[index].s;
-  double line_x1 = scan.ranges[start_scan_index] * cos(laser_angles_[start_scan_index + index_offset]);
-  double line_y1 = scan.ranges[start_scan_index] * sin(laser_angles_[start_scan_index + index_offset]);
+  double line_x1 = scan.ranges[start_scan_index] * laser_angles_cos_[start_scan_index + index_offset];
+  double line_y1 = scan.ranges[start_scan_index] * laser_angles_sin_[start_scan_index + index_offset];
   double line_x2;
   double line_y2;
   int search_scan_index = start_scan_index + dir;
@@ -816,23 +846,24 @@ bool SlamGMapping::searchLineFromEdge(const sensor_msgs::LaserScan& scan, const 
   {
     search_scan_index += dir;
 
-    if(!(scan.ranges[search_scan_index] == scan.ranges[search_scan_index])){//check nan
-      printf("break_search : nan\n");
+    if(!(scan.ranges[search_scan_index] == scan.ranges[search_scan_index])){//check NaN
+      printf("break_search : NaN\n");
       break;
     }
 
-    line_x2 = scan.ranges[search_scan_index] * cos(laser_angles_[search_scan_index + index_offset]);
-    line_y2 = scan.ranges[search_scan_index] * sin(laser_angles_[search_scan_index + index_offset]);
+    line_x2 = scan.ranges[search_scan_index] * laser_angles_cos_[search_scan_index + index_offset];
+    line_y2 = scan.ranges[search_scan_index] * laser_angles_sin_[search_scan_index + index_offset];
 
+    double point_x1, point_y1, dist;
     for(int si = start_scan_index + dir ; si != search_scan_index ; si+=dir){
-      double point_x1 = scan.ranges[si] * cos(laser_angles_[si + index_offset]);
-      double point_y1 = scan.ranges[si] * sin(laser_angles_[si + index_offset]);
+      point_x1 = scan.ranges[si] * laser_angles_cos_[si + index_offset];
+      point_y1 = scan.ranges[si] * laser_angles_sin_[si + index_offset];
 
-      double dist = distPoint2Line(line_x1, line_y1, line_x2, line_y2, point_x1, point_y1);
+      dist = distPoint2Line(line_x1, line_y1, line_x2, line_y2, point_x1, point_y1);
       //printf("distPoint2Line : %lf\n", dist);
       if(dist > outlier_thres){
-        break_search = 1;
-        printf("break_search : outlier_thres\n");
+        break_search = true;
+        printf("break_search : %lf > outlier_thres\n", dist);
         break;
       }
     }
@@ -843,13 +874,14 @@ bool SlamGMapping::searchLineFromEdge(const sensor_msgs::LaserScan& scan, const 
 
   search_scan_index -= dir;
 
-  line_x2 = scan.ranges[search_scan_index] * cos(laser_angles_[search_scan_index + index_offset]);
-  line_y2 = scan.ranges[search_scan_index] * sin(laser_angles_[search_scan_index + index_offset]);
+  line_x2 = scan.ranges[search_scan_index] * laser_angles_cos_[search_scan_index + index_offset];
+  line_y2 = scan.ranges[search_scan_index] * laser_angles_sin_[search_scan_index + index_offset];
 
   length =  sqrt((line_x1 - line_x2)*(line_x1 - line_x2) + (line_y1 - line_y2)*(line_y1 - line_y2));
-  points = abs(search_scan_index - start_scan_index)+1;
+  points_num = abs(search_scan_index - start_scan_index)+1;
 
-  printf("%d points\n", abs(search_scan_index - start_scan_index));
+  printf("%d points_num\n", points_num);
+
   return true;
 }
                                 
@@ -870,6 +902,9 @@ SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
   // We can't initialize the mapper until we've got the first scan
   if(!got_first_scan_)
   {
+    if(!initMapper(*scan))
+      return;
+
     // virtual_scan_.header.stamp = scan -> header.stamp;
     virtual_scan_.header.frame_id = scan -> header.frame_id;
     // virtual_scan_.angle_min = scan -> angle_min;
@@ -888,8 +923,6 @@ SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
     virtual_scan_.range_max = scan -> range_max;
     virtual_scan_.ranges.resize(gsp_laser_beam_count_);
 
-    if(!initMapper(*scan))
-      return;
     got_first_scan_ = true;
   }
 
