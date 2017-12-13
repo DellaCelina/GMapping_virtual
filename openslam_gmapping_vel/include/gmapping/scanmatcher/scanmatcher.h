@@ -154,6 +154,8 @@ inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint&
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (skip||*r>m_usableRange||*r==0.0) continue;
+		if(*r == (double)std::numeric_limits<float>::infinity()) continue;
+
 		Point phit=lp;
 		phit.x+=*r*cos(lp.theta+*angle);
 		phit.y+=*r*sin(lp.theta+*angle);
@@ -206,6 +208,7 @@ inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const 
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (*r>m_usableRange) continue;
+		if(*r == (double)std::numeric_limits<float>::infinity()) continue;
 		if (skip) continue;
 		Point phit=lp;
 		phit.x+=*r*cos(lp.theta+*angle);

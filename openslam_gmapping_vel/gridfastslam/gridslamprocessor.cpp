@@ -404,21 +404,28 @@ void GridSlamProcessor::setMotionModelParameters
       //this is for converting the reading in a scan-matcher feedable form
       assert(reading.size()==m_beams);
       double * plainReading = new double[m_beams];
+      double * realReading = new double[m_beams];
       for(unsigned int i=0; i<m_beams; i++){
 	plainReading[i]=reading[i];
       }
       m_infoStream << "m_count " << m_count << endl;
 
+      for(unsigned int i=0; i<m_beams; i++){
+        if(i >= reading.getMinBeamIdx() && i <= reading.getMaxBeamIdx())
+          realReading[i] = reading[i];
+        else 
+          realReading[i] = (double)std::numeric_limits<float>::infinity();
+      }
       RangeReading* reading_copy = 
               new RangeReading(reading.size(),
                                 reading.getMinBeamIdx(),
                                 reading.getMaxBeamIdx(),
-                               &(reading[0]),
+                                realReading,
                                static_cast<const RangeSensor*>(reading.getSensor()),
                                reading.getTime());
 
       if (m_count>0){
-	scanMatch(plainReading);
+	scanMatch(plainReading, realReading);
 	if (m_outputStream.is_open()){
 	  m_outputStream << "LASER_READING "<< reading.size() << " ";
 	  m_outputStream << setiosflags(ios::fixed) << setprecision(2);
@@ -469,6 +476,7 @@ void GridSlamProcessor::setMotionModelParameters
       //		cerr  << ".done!" <<endl;
       
       delete [] plainReading;
+      delete [] realReading;
       m_lastPartPose=m_odoPose; //update the past pose for the next iteration
       m_linearDistance=0;
       m_angularDistance=0;

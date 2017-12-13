@@ -311,7 +311,7 @@ namespace GMapping {
   private:
     
     /**scanmatches all the particles*/
-    inline void scanMatch(const double *plainReading);
+    inline void scanMatch(const double *plainReading, const double *realReading);
     /**normalizes the particle weights*/
     inline void normalize();
     
