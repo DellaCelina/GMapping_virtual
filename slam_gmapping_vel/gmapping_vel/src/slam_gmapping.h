@@ -51,7 +51,7 @@ class SlamGMapping
   private:
     ros::NodeHandle node_;
     ros::Publisher entropy_publisher_;
-    ros::Publisher vels_;//virtual laser scan
+    ros::Publisher vels_;//virtual extended laser scan
     ros::Publisher sst_;
     ros::Publisher sstm_;
     ros::ServiceServer ss_;
@@ -86,12 +86,17 @@ class SlamGMapping
     int laser_count_;
     int throttle_scans_;
 
+    unsigned int min_laser_angles_index_;
+    unsigned int max_laser_angles_index_;
+
     boost::thread* transform_thread_;
 
     std::string base_frame_;
     std::string laser_frame_;
     std::string map_frame_;
     std::string odom_frame_;
+
+    sensor_msgs::LaserScan virtual_scan_;
 
     void updateMap(const sensor_msgs::LaserScan& scan);
     bool getOdomPose(GMapping::OrientedPoint& gmap_pose, const ros::Time& t);
@@ -100,7 +105,7 @@ class SlamGMapping
     double computePoseEntropy();
     
 
-    void lineDetect(const sensor_msgs::LaserScan& scan);
+    bool searchLineFromEdge(const sensor_msgs::LaserScan& scan, const int dir, double& length, int& points);
     double distPoint2Line(double line_x1, double line_y1, double line_x2, double line_y2, double point_x1, double point_y1);
 
     // Parameters used by GMapping

@@ -436,7 +436,10 @@ SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
     return false;
   }
 
-  gsp_laser_beam_count_ = scan.ranges.size();
+  //gsp_laser_beam_count_ = scan.ranges.size();
+  printf("scan.ranges.size() : %d\n", (int)scan.ranges.size());
+  gsp_laser_beam_count_ = 2*M_PI / scan.angle_increment;
+  printf("gsp_laser_beam_count_ : %d\n", gsp_laser_beam_count_);
 
   double angle_center = (scan.angle_min + scan.angle_max)/2;
 
@@ -456,16 +459,53 @@ SlamGMapping::initMapper(const sensor_msgs::LaserScan& scan)
   }
 
   // Compute the angles of the laser from -x to x, basically symmetric and in increasing order
-  laser_angles_.resize(scan.ranges.size());
+  // laser_angles_.resize(scan.ranges.size());
+  laser_angles_.resize(gsp_laser_beam_count_);
   // Make sure angles are started so that they are centered
   double theta = - std::fabs(scan.angle_min - scan.angle_max)/2;
-  for(unsigned int i=0; i<scan.ranges.size(); ++i)
+
+  while(1){
+    theta -= std::fabs(scan.angle_increment);
+    if(theta < -M_PI+angle_center)
+    {
+      theta += std::fabs(scan.angle_increment);
+      break;
+    }
+  }
+
+  // for(unsigned int i=0; i<scan.ranges.size(); ++i)
+  for(unsigned int i=0; i<gsp_laser_beam_count_; ++i)
   {
     laser_angles_[i]=theta;
     theta += std::fabs(scan.angle_increment);
   }
 
-  ROS_DEBUG("Laser angles in laser-frame: min: %.3f max: %.3f inc: %.3f", scan.angle_min, scan.angle_max,
+
+  min_laser_angles_index_ = -1;
+  max_laser_angles_index_ = -1;
+
+  for (unsigned int i=0; i<gsp_laser_beam_count_; i++){
+    if(scan.angle_min <= laser_angles_[i]){
+      min_laser_angles_index_ = i;
+      printf("min_laser_angles_index_ : %d\n", min_laser_angles_index_);
+      break;
+    }
+  }
+  for (unsigned int i=gsp_laser_beam_count_-1; i>=0; i--){
+    if(scan.angle_max >= laser_angles_[i]){
+      max_laser_angles_index_ = i;
+      printf("max_laser_angles_index_ : %d\n", max_laser_angles_index_);
+      break;
+    }
+  }
+
+  assert(min_laser_angles_index_ != -1);
+  assert(max_laser_angles_index_ != -1);
+
+  printf("min_laser_angles_index_, max_laser_angles_index_ : %d, %d\n", min_laser_angles_index_, max_laser_angles_index_);
+
+
+  printf("Laser angles in laser-frame: min: %.3f max: %.3f inc: %.3f\n", scan.angle_min, scan.angle_max,
             scan.angle_increment);
   ROS_DEBUG("Laser angles in top-down centered laser-frame: min: %.3f max: %.3f inc: %.3f", laser_angles_.front(),
             laser_angles_.back(), std::fabs(scan.angle_increment));
@@ -541,16 +581,33 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
   if(!getOdomPose(gmap_pose, scan.header.stamp))
      return false;
   
-  if(scan.ranges.size() != gsp_laser_beam_count_)
-    return false;
+  // if(scan.ranges.size() != gsp_laser_beam_count_)
+  //   return false;
+
+  double right_line_length;
+  double left_line_length;
+  int right_line_points_num;
+  int left_line_points_num;
+  bool right_line_found;
+  bool left_line_found;
+  right_line_found = searchLineFromEdge(scan, 1, right_line_length, right_line_points_num);
+  left_line_found = searchLineFromEdge(scan, -1, left_line_length, left_line_points_num);
+  printf("left_line_length, right_line_length : %lf, %lf\n\n", left_line_length, right_line_length);
+
+
+
+
 
   // GMapping wants an array of doubles...
-  double* ranges_double = new double[scan.ranges.size()];
+  // double* ranges_double = new double[scan.ranges.size()];
+  double* ranges_double = new double[gsp_laser_beam_count_];
   // If the angle increment is negative, we have to invert the order of the readings.
   if (do_reverse_range_)
   {
+    assert(0);
     ROS_DEBUG("Inverting scan");
-    int num_ranges = scan.ranges.size();
+    // int num_ranges = scan.ranges.size();
+    int num_ranges = gsp_laser_beam_count_;
     for(int i=0; i < num_ranges; i++)
     {
       // Must filter out short readings, because the mapper won't
@@ -559,29 +616,140 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
       else
         ranges_double[i] = (double)scan.ranges[num_ranges - i - 1];
     }
-  } else 
+  }
+  else 
   {
-    for(unsigned int i=0; i < scan.ranges.size(); i++)
-    {
-      // Must filter out short readings, because the mapper won't
-      if(scan.ranges[i] < scan.range_min)
-        ranges_double[i] = (double)scan.range_max;
+
+    int si = 0;
+    for(unsigned int i=0; i < gsp_laser_beam_count_; i++){
+      if(i >= min_laser_angles_index_ && i <= max_laser_angles_index_){
+
+        if(scan.ranges[si] < scan.range_min)
+          ranges_double[i] = (double)scan.range_max;
+        else
+          ranges_double[i] = (double)scan.ranges[si];
+        si++;
+      }
       else
-        ranges_double[i] = (double)scan.ranges[i];
+        ranges_double[i] = (double)std::numeric_limits<float>::infinity();
     }
+
+    if(right_line_found && right_line_length > 0.25){
+      double virtual_length = 0.2;
+      double x1, y1, x2, y2;
+      double r1, th1, r2, th2;
+      r1 = scan.ranges[0];
+      th1 = laser_angles_[min_laser_angles_index_];
+      r2 = scan.ranges[right_line_points_num-1];
+      th2 = laser_angles_[min_laser_angles_index_+right_line_points_num-1];
+      x1 = r1 * cos(th1);
+      y1 = r1 * sin(th1);
+      x2 = r2 * cos(th2);
+      y2 = r2 * sin(th2);
+      double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
+      //printf("len : %lf, x1:%lf, y1:%lf, x2:%lf, y2:%lf\n", len, x1, y1, x2, y2);
+
+      double a, b;
+      a = atan((r2*sin(th2)-r1*sin(th1))/(r1*cos(th1)-r2*cos(th2)));
+      b = r1*sin(a+th1);
+      //printf("a: %lf, b: %lf\n", a, b);
+      double r3, th3, x3, y3;
+      th3 = th1;
+      int virtual_points_num = 0;
+      while(1){
+        virtual_points_num++;
+        if(min_laser_angles_index_-virtual_points_num < 0)
+          break;
+        // th3 -= scan.angle_increment;
+        th3 = laser_angles_[min_laser_angles_index_-virtual_points_num];
+        r3 = b/(sin(th3+a));
+        x3 = r3 * cos(th3);
+        y3 = r3 * sin(th3);
+        //printf("r3 : %lf, th3 : %lf, x3:%lf, y3:%lf\n", r3, th3, x3, y3);
+
+        ranges_double[min_laser_angles_index_-virtual_points_num] = r3;
+
+        double len = sqrt((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3));
+        if(len > virtual_length)
+          break;
+      }
+
+      printf("virtual_points_num : %d\n", virtual_points_num);
+
+    }
+
+    if(left_line_found && left_line_length > 0.25){
+      double virtual_length = 0.2;
+      double x1, y1, x2, y2;
+      double r1, th1, r2, th2;
+      r1 = scan.ranges[scan.ranges.size()-1];
+      th1 = laser_angles_[max_laser_angles_index_];
+      r2 = scan.ranges[scan.ranges.size()-1 - (left_line_points_num-1)];
+      th2 = laser_angles_[max_laser_angles_index_ - (left_line_points_num-1)];
+      x1 = r1 * cos(th1);
+      y1 = r1 * sin(th1);
+      x2 = r2 * cos(th2);
+      y2 = r2 * sin(th2);
+      double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
+      //printf("len : %lf, x1:%lf, y1:%lf, x2:%lf, y2:%lf\n", len, x1, y1, x2, y2);
+
+      double a, b;
+      a = atan((r2*sin(th2)-r1*sin(th1))/(r1*cos(th1)-r2*cos(th2)));
+      b = r1*sin(a+th1);
+      //printf("a: %lf, b: %lf\n", a, b);
+      double r3, th3, x3, y3;
+      th3 = th1;
+      int virtual_points_num = 0;
+      while(1){
+        virtual_points_num++;
+        if(max_laser_angles_index_+virtual_points_num > gsp_laser_beam_count_ - 1)
+          break;
+        // th3 += scan.angle_increment;
+        th3 = laser_angles_[max_laser_angles_index_+virtual_points_num];
+        r3 = b/(sin(th3+a));
+        x3 = r3 * cos(th3);
+        y3 = r3 * sin(th3);
+        //printf("r3 : %lf, th3 : %lf, x3:%lf, y3:%lf\n", r3, th3, x3, y3);
+
+        ranges_double[max_laser_angles_index_+virtual_points_num] = r3;
+
+        double len = sqrt((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3));
+        if(len > virtual_length)
+          break;
+      }
+
+      printf("virtual_points_num : %d\n", virtual_points_num);
+
+    }
+
+    virtual_scan_.ranges.clear();
+    for(unsigned int i=0; i < gsp_laser_beam_count_; i++)
+    {
+      if(i >= min_laser_angles_index_ && i <= max_laser_angles_index_)
+        virtual_scan_.ranges.push_back((double)std::numeric_limits<float>::infinity());
+      else
+        virtual_scan_.ranges.push_back(ranges_double[i]);
+    }
+
+
+    // for(unsigned int i=0; i < scan.ranges.size(); i++)
+    // for(unsigned int i=0; i < gsp_laser_beam_count_; i++)
+    // {
+    //   // Must filter out short readings, because the mapper won't
+    //   if(scan.ranges[i] < scan.range_min)
+    //     ranges_double[i] = (double)scan.range_max;
+    //   else
+    //     ranges_double[i] = (double)scan.ranges[i];
+    // }
   }
 
-
-
-  lineDetect(scan);
-
-
-
-
-  GMapping::RangeReading reading(scan.ranges.size(),
-                                 ranges_double,
-                                 gsp_laser_,
-                                 scan.header.stamp.toSec());
+  // GMapping::RangeReading reading(scan.ranges.size(),
+  GMapping::RangeReading reading(gsp_laser_beam_count_,
+                                  min_laser_angles_index_,
+                                  max_laser_angles_index_,
+                                  ranges_double,
+                                  gsp_laser_,
+                                  scan.header.stamp.toSec());
 
   // ...but it deep copies them in RangeReading constructor, so we don't
   // need to keep our array around.
@@ -596,62 +764,93 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
             gmap_pose.y,
             gmap_pose.theta);
             */
-  ROS_DEBUG("processing scan");
-
-  return gsp_->processScan(reading);
+  //printf("processing scan\n");
+  //bool ret = gsp_->processScan(reading);
+  //printf("processing scan result : %d\n", ret);
+  //return ret;
+  return true;
 }
 
 
 
 
-void SlamGMapping::lineDetect(const sensor_msgs::LaserScan& scan)
+bool SlamGMapping::searchLineFromEdge(const sensor_msgs::LaserScan& scan, const int dir, double& length, int& points)
 {
-  int num_ranges = scan.ranges.size();
-  int left_index;
-  int right_index;
-  int index = 0;//Versatile index
+  int start_scan_index;
+  int start_angles_index;
+  int index, index_offset;
+  double outlier_thres = 0.004;
+  int break_search = 0;
 
-  while(!(scan.ranges[index] == scan.ranges[index]))//check nan
+  if(dir == 1)
   {
-    index++;//left to right
-    if(index == num_ranges)
-      return;
+    start_scan_index = 0;
+    start_angles_index = min_laser_angles_index_;
   }
-
-  left_index = index;
-  printf("left_index : %d\n", left_index);
-
-  index = num_ranges - 1;
-  while(!(scan.ranges[index] == scan.ranges[index]))//check nan
+  else if(dir == -1)
   {
-    index--;//right to left
-    if(index == -1){
-      printf("!!!!\n");
-      return;//not reachable
-    }
+    start_scan_index  = scan.ranges.size() - 1;
+    start_angles_index = max_laser_angles_index_;
   }
+  else
+    assert(0);
 
-  right_index = index;
-  printf("right_index : %d\n", right_index);
+  index_offset = start_angles_index - start_scan_index;
 
+  printf("start_angles_index, start_scan_index : %d, %d\n", start_angles_index, start_scan_index);
 
-  double line_x1, line_y1;
-  index = left_index;
-  line_x1 = scan.ranges[index] * gsp_laser_ -> m_beams[index].c;
-  line_y1 = scan.ranges[index] * gsp_laser_ -> m_beams[index].s;
+  if(!(scan.ranges[start_scan_index] == scan.ranges[start_scan_index]))//check nan
+    return false;
+  if(!(scan.ranges[start_scan_index+dir] == scan.ranges[start_scan_index+dir]))//check nan
+    return false;
+
+  // double line_x1 = scan.ranges[index] * gsp_laser_ -> beams()[index].c;
+  // double line_y1 = scan.ranges[index] * gsp_laser_ -> beams()[index].s;
+  double line_x1 = scan.ranges[start_scan_index] * cos(laser_angles_[start_scan_index + index_offset]);
+  double line_y1 = scan.ranges[start_scan_index] * sin(laser_angles_[start_scan_index + index_offset]);
+  double line_x2;
+  double line_y2;
+  int search_scan_index = start_scan_index + dir;
+
   while(1)
   {
-    double line_x2, line_y2;
+    search_scan_index += dir;
 
-    index++;
-    line_x2 = scan.ranges[index] * gsp_laser_ -> m_beams[index].c;
-    line_y2 = scan.ranges[index] * gsp_laser_ -> m_beams[index].s;
+    if(!(scan.ranges[search_scan_index] == scan.ranges[search_scan_index])){//check nan
+      printf("break_search : nan\n");
+      break;
+    }
 
+    line_x2 = scan.ranges[search_scan_index] * cos(laser_angles_[search_scan_index + index_offset]);
+    line_y2 = scan.ranges[search_scan_index] * sin(laser_angles_[search_scan_index + index_offset]);
 
+    for(int si = start_scan_index + dir ; si != search_scan_index ; si+=dir){
+      double point_x1 = scan.ranges[si] * cos(laser_angles_[si + index_offset]);
+      double point_y1 = scan.ranges[si] * sin(laser_angles_[si + index_offset]);
+
+      double dist = distPoint2Line(line_x1, line_y1, line_x2, line_y2, point_x1, point_y1);
+      //printf("distPoint2Line : %lf\n", dist);
+      if(dist > outlier_thres){
+        break_search = 1;
+        printf("break_search : outlier_thres\n");
+        break;
+      }
+    }
+
+    if(break_search)
+      break;
   }
 
+  search_scan_index -= dir;
 
+  line_x2 = scan.ranges[search_scan_index] * cos(laser_angles_[search_scan_index + index_offset]);
+  line_y2 = scan.ranges[search_scan_index] * sin(laser_angles_[search_scan_index + index_offset]);
 
+  length =  sqrt((line_x1 - line_x2)*(line_x1 - line_x2) + (line_y1 - line_y2)*(line_y1 - line_y2));
+  points = abs(search_scan_index - start_scan_index)+1;
+
+  printf("%d points\n", abs(search_scan_index - start_scan_index));
+  return true;
 }
                                 
 double SlamGMapping::distPoint2Line(double line_x1, double line_y1, double line_x2, double line_y2, double point_x1, double point_y1)
@@ -671,6 +870,24 @@ SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
   // We can't initialize the mapper until we've got the first scan
   if(!got_first_scan_)
   {
+    // virtual_scan_.header.stamp = scan -> header.stamp;
+    virtual_scan_.header.frame_id = scan -> header.frame_id;
+    // virtual_scan_.angle_min = scan -> angle_min;
+
+    double min = scan -> angle_min;
+    while(1){
+      min -= fabs(scan -> angle_increment);
+      if(min < -M_PI)
+        break;
+    }
+    virtual_scan_.angle_min = min + fabs(scan -> angle_increment);
+    virtual_scan_.angle_increment = scan -> angle_increment;
+    virtual_scan_.time_increment = scan -> time_increment;
+    virtual_scan_.scan_time = scan -> scan_time;
+    virtual_scan_.range_min = scan -> range_min;
+    virtual_scan_.range_max = scan -> range_max;
+    virtual_scan_.ranges.resize(gsp_laser_beam_count_);
+
     if(!initMapper(*scan))
       return;
     got_first_scan_ = true;
@@ -701,13 +918,13 @@ SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
       ROS_DEBUG("Updated the map");
 
 
-
-
-      vels_.publish(scan);//publish virtual extended laser scan
-
     }
-  } else
-    ROS_DEBUG("cannot process scan");
+
+
+    vels_.publish(virtual_scan_);//publish virtual extended laser scan
+  }
+  else
+    printf("cannot process scan\n");
 }
 
 double

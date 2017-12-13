@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <gmapping/utils/gvalues.h>
 #include <gmapping/sensor/sensor_range/rangereading.h>
+#include <stdio.h>
 
 namespace GMapping{
 
@@ -12,12 +13,45 @@ using namespace std;
 RangeReading::RangeReading(const RangeSensor* rs, double time):
 	SensorReading(rs,time){}
 
-RangeReading::RangeReading(unsigned int n_beams, const double* d, const RangeSensor* rs, double time):
+RangeReading::RangeReading(unsigned int n_beams, unsigned int min_beam_index, unsigned int max_beam_index, const double* d, const RangeSensor* rs, double time):
+	SensorReading(rs,time), m_min_beam_index(min_beam_index), m_max_beam_index(max_beam_index){
+	assert(n_beams==rs->beams().size());
+	resize(n_beams);
+
+	for (unsigned int i=0; i<size(); i++)
+		(*this)[i]=d[i];
+}
+
+RangeReading::RangeReading(unsigned int n_beams, double min_angle, double max_angle, const double* d, const RangeSensor* rs, double time):
 	SensorReading(rs,time){
 	assert(n_beams==rs->beams().size());
 	resize(n_beams);
+
+	m_min_beam_index = -1;
+	m_max_beam_index = -1;
+
 	for (unsigned int i=0; i<size(); i++)
 		(*this)[i]=d[i];
+
+	for (unsigned int i=0; i<size(); i++){
+		if(min_angle < rs->beams()[i].pose.theta){
+			m_min_beam_index = i;
+			printf("m_min_beam_index : %d\n", m_min_beam_index);
+			break;
+		}
+	}
+	for (unsigned int i=size()-1; i>=0; i--){
+		if(max_angle > rs->beams()[i].pose.theta){
+			m_max_beam_index = i;
+			printf("m_max_beam_index : %d\n", m_max_beam_index);
+			break;
+		}
+	}
+
+	assert(m_min_beam_index != -1);
+	assert(m_max_beam_index != -1);
+
+	printf("min max beam index : %d, %d\n", m_min_beam_index, m_max_beam_index);
 }
 
 RangeReading::~RangeReading(){
