@@ -590,6 +590,8 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
 
   double right_line_length = 0, left_line_length = 0;
   int right_line_points_num = 0, left_line_points_num = 0;
+  unsigned int right_virtual_points_num = 0;
+  unsigned int left_virtual_points_num = 0;
   bool right_line_found, left_line_found;
 
   right_line_found = searchLineFromEdge(scan, 1, 0.004, right_line_length, right_line_points_num);
@@ -654,8 +656,8 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
 
       x1 = r1 * cth1;
       y1 = r1 * sth1;
-      x2 = r2 * cth2;
-      y2 = r2 * sth2;
+      // x2 = r2 * cth2;
+      // y2 = r2 * sth2;
 
       //double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
       //printf("len : %lf, x1:%lf, y1:%lf, x2:%lf, y2:%lf\n", len, x1, y1, x2, y2);
@@ -666,32 +668,33 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
       //printf("a: %lf, b: %lf\n", a, b);
 
       double r3, th3, x3, y3;//for virtual points
-      int virtual_points_num = 0;
 
       while(1)
       {
-        virtual_points_num++;
-        if(min_laser_angles_index_-virtual_points_num < 0)
-          break;
+        right_virtual_points_num++;
+        if(min_laser_angles_index_-right_virtual_points_num < 0)
+          break;//bug!!!
 
-        th3 = laser_angles_[min_laser_angles_index_-virtual_points_num];
+        th3 = laser_angles_[min_laser_angles_index_-right_virtual_points_num];
         r3 = b/(sin(th3+a));
 
         if(r3 > scan.range_max)
           break;
 
-        x3 = r3 * laser_angles_cos_[min_laser_angles_index_-virtual_points_num];
-        y3 = r3 * laser_angles_sin_[min_laser_angles_index_-virtual_points_num];
+        x3 = r3 * laser_angles_cos_[min_laser_angles_index_-right_virtual_points_num];
+        y3 = r3 * laser_angles_sin_[min_laser_angles_index_-right_virtual_points_num];
         //printf("r3 : %lf, th3 : %lf, x3:%lf, y3:%lf\n", r3, th3, x3, y3);
 
         double S_O_len = (x1-x3)*(x1-x3)+(y1-y3)*(y1-y3);
         if(S_O_len > Square_of_VIRTUAL_LINE_LENGTH)
           break;
 
-        ranges_double[min_laser_angles_index_-virtual_points_num] = r3;//add virtual value
+        ranges_double[min_laser_angles_index_-right_virtual_points_num] = r3;//add virtual value
       }
 
-      printf("virtual_points_num : %d\n", virtual_points_num-1);
+      right_virtual_points_num--;
+
+      printf("right_virtual_points_num : %d\n", right_virtual_points_num);
     }
 
     if(left_line_found && left_line_length > MIN_DETECT_LINE_LENGTH){
@@ -711,8 +714,8 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
 
       x1 = r1 * cth1;
       y1 = r1 * sth1;
-      x2 = r2 * cth2;
-      y2 = r2 * sth2;
+      // x2 = r2 * cth2;
+      // y2 = r2 * sth2;
 
       //double len = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
       //printf("len : %lf, x1:%lf, y1:%lf, x2:%lf, y2:%lf\n", len, x1, y1, x2, y2);
@@ -723,33 +726,37 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
       //printf("a: %lf, b: %lf\n", a, b);
 
       double r3, th3, x3, y3;//for virtual points
-      int virtual_points_num = 0;
 
       while(1)
       {
-        virtual_points_num++;
-        if(max_laser_angles_index_+virtual_points_num > gsp_laser_beam_count_ - 1)
-          break;
+        left_virtual_points_num++;
+        if(max_laser_angles_index_+left_virtual_points_num > gsp_laser_beam_count_ - 1)
+          break;//bug!!!
 
-        th3 = laser_angles_[max_laser_angles_index_+virtual_points_num];
+        th3 = laser_angles_[max_laser_angles_index_+left_virtual_points_num];
         r3 = b/(sin(th3+a));
 
         if(r3 > scan.range_max)
           break;
 
-        x3 = r3 * laser_angles_cos_[max_laser_angles_index_+virtual_points_num];
-        y3 = r3 * laser_angles_sin_[max_laser_angles_index_+virtual_points_num];
+        x3 = r3 * laser_angles_cos_[max_laser_angles_index_+left_virtual_points_num];
+        y3 = r3 * laser_angles_sin_[max_laser_angles_index_+left_virtual_points_num];
         //printf("r3 : %lf, th3 : %lf, x3:%lf, y3:%lf\n", r3, th3, x3, y3);
 
         double S_O_len = (x1-x3)*(x1-x3)+(y1-y3)*(y1-y3);
         if(S_O_len > Square_of_VIRTUAL_LINE_LENGTH)
           break;
 
-        ranges_double[max_laser_angles_index_+virtual_points_num] = r3;//add virtual value
+        ranges_double[max_laser_angles_index_+left_virtual_points_num] = r3;//add virtual value
       }
 
-      printf("virtual_points_num : %d\n", virtual_points_num-1);
+      left_virtual_points_num--;
+    
+      printf("left_virtual_points_num : %d\n", left_virtual_points_num);
     }
+
+
+
 
     virtual_scan_.ranges.clear();
     for(unsigned int i=0; i < gsp_laser_beam_count_; i++)
@@ -776,6 +783,8 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
   GMapping::RangeReading reading(gsp_laser_beam_count_,
                                   min_laser_angles_index_,
                                   max_laser_angles_index_,
+                                  min_laser_angles_index_-right_virtual_points_num,
+                                  max_laser_angles_index_+left_virtual_points_num,
                                   ranges_double,
                                   gsp_laser_,
                                   scan.header.stamp.toSec());
