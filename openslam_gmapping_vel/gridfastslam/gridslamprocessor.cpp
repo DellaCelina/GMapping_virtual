@@ -414,7 +414,7 @@ void GridSlamProcessor::setMotionModelParameters
         if(i >= reading.getMinBeamIdx() && i <= reading.getMaxBeamIdx())
           realReading[i] = reading[i];
         else 
-          realReading[i] = (double)std::numeric_limits<float>::infinity();
+          realReading[i] = (double)getlaserMaxRange() + 0.1;
       }
       RangeReading* reading_copy = 
               new RangeReading(reading.size(),
@@ -456,14 +456,14 @@ void GridSlamProcessor::setMotionModelParameters
 	  m_outputStream << setiosflags(ios::fixed) << setprecision(6);
 	  m_outputStream << "NEFF " << m_neff << endl;
 	}
- 	resample(plainReading, adaptParticles, reading_copy);
+ 	resample(realReading, adaptParticles, reading_copy);
 	
       } else {
 	m_infoStream << "Registering First Scan"<< endl;
 	for (ParticleVector::iterator it=m_particles.begin(); it!=m_particles.end(); it++){	
 	  m_matcher.invalidateActiveArea();
-	  m_matcher.computeActiveArea(it->map, it->pose, plainReading);
-	  m_matcher.registerScan(it->map, it->pose, plainReading);
+	  m_matcher.computeActiveArea(it->map, it->pose, realReading);
+	  m_matcher.registerScan(it->map, it->pose, realReading);
 	  
 	  // cyr: not needed anymore, particles refer to the root in the beginning!
 	  TNode* node=new	TNode(it->pose, 0., it->node,  0);

@@ -632,7 +632,7 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
         si++;
       }
       else
-        ranges_double[i] = (double)std::numeric_limits<float>::infinity();
+        ranges_double[i] = (double)scan.range_max;
     }
 
 
@@ -788,6 +788,12 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
                                   ranges_double,
                                   gsp_laser_,
                                   scan.header.stamp.toSec());
+
+  printf("indexs, real min : %d, real max : %d, vir min : %d, vir max : %d\n",
+                                  min_laser_angles_index_,
+                                  max_laser_angles_index_,
+                                  min_laser_angles_index_-right_virtual_points_num,
+                                  max_laser_angles_index_+left_virtual_points_num);
 
   // ...but it deep copies them in RangeReading constructor, so we don't
   // need to keep our array around.
