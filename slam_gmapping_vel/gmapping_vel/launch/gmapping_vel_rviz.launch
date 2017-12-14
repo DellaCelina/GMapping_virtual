@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+
+<!-- run rviz with save file -->
+
+<launch>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gmapping_vel)/rviz/gmapping_vel.rviz" />
+
+</launch>
+
+
+
+
+
+
+
+
