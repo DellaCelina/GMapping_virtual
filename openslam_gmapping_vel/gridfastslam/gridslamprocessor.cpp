@@ -408,6 +408,13 @@ void GridSlamProcessor::setMotionModelParameters
       plainReading.setData(reading);
       m_infoStream << "m_count " << m_count << endl;
 
+      /*cout << "Reading : ";
+      for(int i = 0; i<m_beams; i++){
+        cout << plainReading.virtualReading[i];
+      }
+      cout << endl;
+      */
+
       RangeReading* reading_copy = 
               new RangeReading(reading.size(),
                                   reading.getMinBeamIdx(),
