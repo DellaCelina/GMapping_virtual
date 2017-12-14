@@ -162,7 +162,7 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	HierarchicalArray2D<PointAccumulator>::PointSet activeArea;
 	/*allocate the active area*/
 	angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
-	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<readings.realReading+readins.real_max; r++, angle++)
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<readings.realReading+readings.real_max; r++, angle++)
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
@@ -228,7 +228,7 @@ double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, co
 	
 	const double * angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
 	double esum=0;
-	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<=readings.realReading+real_max; r++, angle++)
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<=readings.realReading+readings.real_max; r++, angle++)
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
@@ -316,9 +316,9 @@ void ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, cons
 
 */
 
-double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
+double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const ReadingData& readings) const{
 	double currentScore;
-	double sc=score(map, init, readings);;
+	double sc=score(map, init, readings);
 	OrientedPoint start=init;
 	pnew=init;
 	int iterations=0;
@@ -427,7 +427,7 @@ struct ScoredMove{
 
 typedef std::list<ScoredMove> ScoredMoveList;
 
-double ScanMatcher::optimize(OrientedPoint& _mean, ScanMatcher::CovarianceMatrix& _cov, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
+double ScanMatcher::optimize(OrientedPoint& _mean, ScanMatcher::CovarianceMatrix& _cov, const ScanMatcherMap& map, const OrientedPoint& init, const ReadingData& readings) const{
 	ScoredMoveList moveList;
 	double bestScore=-1;
 	OrientedPoint currentPose=init;
@@ -584,7 +584,7 @@ double ScanMatcher::likelihood
 		ScoredMove sm;
 		sm.pose=rp;
 		
-		likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
+		//likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
 		moveList.push_back(sm);
 	}
 	
@@ -653,7 +653,7 @@ double ScanMatcher::likelihood
 		ScoredMove sm;
 		sm.pose=rp;
 		
-		likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
+		//likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
 		sm.likelihood+=odometry.eval(rp)/gain;
 		assert(!isnan(sm.likelihood));
 		moveList.push_back(sm);

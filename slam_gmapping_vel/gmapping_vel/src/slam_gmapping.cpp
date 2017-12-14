@@ -117,6 +117,7 @@ Initial map dimensions and resolution:
 
 #include "gmapping/sensor/sensor_range/rangesensor.h"
 #include "gmapping/sensor/sensor_odometry/odometrysensor.h"
+#include "gmapping/scanmatcher/scanmatcher.h"
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -802,11 +803,11 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
             gmap_pose.y,
             gmap_pose.theta);
             */
-  //printf("processing scan\n");
-  //bool ret = gsp_->processScan(reading);
-  //printf("processing scan result : %d\n", ret);
-  //return ret;
-  return true;
+  printf("processing scan\n");
+  bool ret = gsp_->processScan(reading);
+  printf("processing scan result : %d\n", ret);
+  return ret;
+  //return true;
 }
 
 
@@ -1043,9 +1044,13 @@ SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
       ROS_DEBUG("Reading is NULL");
       continue;
     }
+    const GMapping::RangeReading* reading = n->reading;
+    GMapping::ReadingData data(gsp_laser_beam_count_, reading->getMinVirtualBeamIdx(), reading->getMaxVirtualBeamIdx(),
+                            reading->getMinBeamIdx(), reading->getMaxBeamIdx());
+    data.setData(*reading);
     matcher.invalidateActiveArea();
-    matcher.computeActiveArea(smap, n->pose, &((*n->reading)[0]));
-    matcher.registerScan(smap, n->pose, &((*n->reading)[0]));
+    matcher.computeActiveArea(smap, n->pose, data);
+    matcher.registerScan(smap, n->pose, data);
   }
 
   // the map may have expanded, so resize ros message as well

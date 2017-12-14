@@ -7,6 +7,7 @@
 #include <gmapping/utils/stat.h>
 #include <iostream>
 #include <gmapping/utils/gvalues.h>
+#include <vector>
 // #define LASER_MAXBEAMS 2048
 #define LASER_MAXBEAMS 4096
 
@@ -14,19 +15,19 @@ namespace GMapping {
 
 class ReadingData{
 	public:
-		ReadingData(unsigned int num, unsigned int virtual_min, unsigned int virtual_max
+		ReadingData(unsigned int num, unsigned int virtual_min, unsigned int virtual_max,
 			unsigned int real_min, unsigned int real_max) : num(num), virtual_min(virtual_min), virtual_max(virtual_max), real_min(real_min), real_max(real_max){
 				virtualReading = new double[num];
 				realReading = new double[num];
 			}
 		~ReadingData(){ delete[] virtualReading; delete[] realReading;	}
-		void setData(const double* reading){
+		void setData(const std::vector<double>& reading){
 			for(int i = 0; i < num; i++){
 				virtualReading[i] = reading[i];
 				if(i >= real_min && i <= real_max)
 					realReading[i] = reading[i];
 				else
-					realReading[i] = std::numeric_limits<float>::infinity();
+					realReading[i] = 0;
 			}
 		}
 		double* virtualReading;
@@ -40,9 +41,9 @@ class ScanMatcher{
 		
 		ScanMatcher();
 		~ScanMatcher();
-		double icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& p, const double* readings) const;
-		double optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData readings) const;
-		double optimize(OrientedPoint& mean, CovarianceMatrix& cov, const ScanMatcherMap& map, const OrientedPoint& p, const double* readings) const;
+		double icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings) const;
+		double optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings) const;
+		double optimize(OrientedPoint& mean, CovarianceMatrix& cov, const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings) const;
 		
 		double   registerScan(ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings);
 		void setLaserParameters
@@ -52,7 +53,7 @@ class ScanMatcher{
 		void invalidateActiveArea();
 		void computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings);
 
-		inline double icpStep(OrientedPoint & pret, const ScanMatcherMap& map, const OrientedPoint& p, const double* readings) const;
+		inline double icpStep(OrientedPoint & pret, const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings) const;
 		inline double score(const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings) const;
 		inline unsigned int likelihoodAndScore(double& s, double& l, const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings) const;
 		double likelihood(double& lmax, OrientedPoint& mean, CovarianceMatrix& cov, const ScanMatcherMap& map, const OrientedPoint& p, const double* readings);
@@ -96,7 +97,7 @@ class ScanMatcher{
 		IntPoint* m_linePoints;
 };
 
-inline double ScanMatcher::icpStep(OrientedPoint & pret, const ScanMatcherMap& map, const OrientedPoint& p, const double* readings) const{
+inline double ScanMatcher::icpStep(OrientedPoint & pret, const ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings) const{
 	const double * angle=m_laserAngles+m_initialBeamsSkip;
 	OrientedPoint lp=p;
 	lp.x+=cos(p.theta)*m_laserPose.x-sin(p.theta)*m_laserPose.y;
@@ -106,7 +107,7 @@ inline double ScanMatcher::icpStep(OrientedPoint & pret, const ScanMatcherMap& m
 	double freeDelta=map.getDelta()*m_freeCellRatio;
 	std::list<PointPair> pairs;
 	
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++){
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<readings.realReading+readings.real_max; r++, angle++){
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (*r>m_usableRange||*r==0.0) continue;
@@ -176,7 +177,6 @@ inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint&
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (skip||*r>m_usableRange||*r==0.0) continue;
-		if(*r == (double)std::numeric_limits<float>::infinity()) continue;
 
 		Point phit=lp;
 		phit.x+=*r*cos(lp.theta+*angle);
@@ -229,8 +229,7 @@ inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const 
 	for (const double* r=readings.virtualReading+readings.virtual_min+m_initialBeamsSkip; r<=readings.virtualReading+readings.virtual_max; r++, angle++){
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
-		if (*r>m_usableRange) continue;
-		if(*r == (double)std::numeric_limits<float>::infinity()) continue;
+		if (*r>m_usableRange || *r == 0.0) continue;
 		if (skip) continue;
 		Point phit=lp;
 		phit.x+=*r*cos(lp.theta+*angle);
