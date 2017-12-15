@@ -414,6 +414,7 @@ void GridSlamProcessor::setMotionModelParameters
       m_matcher.setrelMax(m_relMax);
       double * plainReading = new double[m_beams];
       double * realReading = new double[m_beams];
+
       for(unsigned int i=0; i<m_beams; i++){
         plainReading[i]=reading[i];
         //std::cout <<"virtual " <<i << " : " << plainReading[i] << std::endl;

@@ -975,12 +975,10 @@ SlamGMapping::laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
 
 
     }
-
-
-    vels_.publish(virtual_scan_);//publish virtual extended laser scan
   }
   else
     printf("cannot process scan\n");
+   vels_.publish(virtual_scan_);//publish virtual extended laser scan
 }
 
 double
