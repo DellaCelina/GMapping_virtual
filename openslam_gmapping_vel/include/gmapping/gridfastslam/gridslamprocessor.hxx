@@ -6,7 +6,7 @@
 
 /**Just scan match every single particle.
 If the scan matching fails, the particle gets a default likelihood.*/
-inline void GridSlamProcessor::scanMatch(const ReadingData& plainReading){
+inline void GridSlamProcessor::scanMatch(const double* plainReading, const double* realReading){
   // sample a new pose from each scan in the reference
   
   double sumScore=0;
@@ -33,7 +33,7 @@ inline void GridSlamProcessor::scanMatch(const ReadingData& plainReading){
     //set up the selective copy of the active area
     //by detaching the areas that will be updated
     m_matcher.invalidateActiveArea();
-    m_matcher.computeActiveArea(it->map, it->pose, plainReading);
+    m_matcher.computeActiveArea(it->map, it->pose, realReading);
   }
   if (m_infoStream)
     m_infoStream << "Average Scan Matching Score=" << sumScore/m_particles.size() << std::endl;	
@@ -67,7 +67,7 @@ inline void GridSlamProcessor::normalize(){
   
 }
 
-inline bool GridSlamProcessor::resample(const ReadingData& plainReading, int adaptSize, const RangeReading* reading){
+inline bool GridSlamProcessor::resample(const double* plainReading, int adaptSize, const RangeReading* reading){
   
   bool hasResampled = false;
   

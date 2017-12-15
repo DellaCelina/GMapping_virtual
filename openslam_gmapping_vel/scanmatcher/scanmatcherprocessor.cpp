@@ -143,7 +143,7 @@ void ScanMatcherProcessor::processScan(const RangeReading & reading){
 	if (m_count){
 		if(m_computeCovariance){
 			ScanMatcher::CovarianceMatrix cov;
-			//score=m_matcher.optimize(newPose, cov, m_map, m_pose, plainReading);
+			score=m_matcher.optimize(newPose, cov, m_map, m_pose, plainReading);
                         /*
 			gsl_matrix* m=gsl_matrix_alloc(3,3);
 			gsl_matrix_set(m,0,0,cov.xx); gsl_matrix_set(m,0,1,cov.xy); gsl_matrix_set(m,0,2,cov.xt);
@@ -177,8 +177,8 @@ void ScanMatcherProcessor::processScan(const RangeReading & reading){
 		} else {
 			if (useICP){
 				cerr << "USING ICP" << endl;
-				//score=m_matcher.icpOptimize(newPose, m_map, m_pose, plainReading);
-			}//else score=m_matcher.optimize(newPose, m_map, m_pose, plainReading);
+				score=m_matcher.icpOptimize(newPose, m_map, m_pose, plainReading);
+			}else score=m_matcher.optimize(newPose, m_map, m_pose, plainReading);
 		}
 		
 		
@@ -193,9 +193,9 @@ void ScanMatcherProcessor::processScan(const RangeReading & reading){
 #ifdef SCANMATHCERPROCESSOR_DEBUG
 			cout << "New Scan added, using odo pose" << endl;
 #endif
-			//m_matcher.registerScan(m_map, m_pose, plainReading);
+			m_matcher.registerScan(m_map, m_pose, plainReading);
 		} else {
-			//m_matcher.registerScan(m_map, newPose, plainReading);
+			m_matcher.registerScan(m_map, newPose, plainReading);
 #ifdef SCANMATHCERPROCESSOR_DEBUG
 			cout << "New Scan added, using matched pose" << endl;
 #endif

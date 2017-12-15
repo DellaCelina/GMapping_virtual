@@ -1061,9 +1061,16 @@ SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
     GMapping::ReadingData data(gsp_laser_beam_count_, reading->getMinVirtualBeamIdx(), reading->getMaxVirtualBeamIdx(),
                             reading->getMinBeamIdx(), reading->getMaxBeamIdx());
     data.setData(*reading);
+    m_matcher.setvirMin(m_virMin);
+    m_matcher.setvirMax(m_virMax);
+    m_matcher.setrelMin(m_relMin);
+    m_matcher.setrelMax(m_relMax);
     matcher.invalidateActiveArea();
     matcher.computeActiveArea(smap, n->pose, data);
     matcher.registerScan(smap, n->pose, data);
+    matcher.computeActiveArea(smap, n->pose, &((*n->reading)[0]));
+    matcher.registerScan(smap, n->pose, &((*n->reading)[0]));
+
   }
 
   // the map may have expanded, so resize ros message as well

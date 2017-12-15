@@ -420,7 +420,6 @@ void GridSlamProcessor::setMotionModelParameters
       }
       m_infoStream << "m_count " << m_count << endl;
 
-      /*
       for(unsigned int i=0; i<m_beams; i++){
         if(i >= reading.getMinBeamIdx() && i <= reading.getMaxBeamIdx())
           realReading[i] = reading[i];
@@ -428,8 +427,6 @@ void GridSlamProcessor::setMotionModelParameters
           realReading[i] = (double)getlaserMaxRange() + 0.01;
           //std::cout << "real " << i << " : " << realReading[i] << std::endl;
       }
-      cout << endl;
-      */
 
       RangeReading* reading_copy = 
               new RangeReading(reading.size(),
@@ -447,7 +444,7 @@ void GridSlamProcessor::setMotionModelParameters
       */
 
       if (m_count>0){
-	scanMatch(plainReading);
+	scanMatch(plainReading, realReading);
 	if (m_outputStream.is_open()){
 	  m_outputStream << "LASER_READING "<< reading.size() << " ";
 	  m_outputStream << setiosflags(ios::fixed) << setprecision(2);
@@ -496,6 +493,9 @@ void GridSlamProcessor::setMotionModelParameters
       //		cerr  << "Tree: normalizing, resetting and propagating weights at the end..." ;
       updateTreeWeights(false);
       //		cerr  << ".done!" <<endl;
+
+      delete[] plainReading;
+      delete[] realReading;
       
       m_lastPartPose=m_odoPose; //update the past pose for the next iteration
       m_linearDistance=0;

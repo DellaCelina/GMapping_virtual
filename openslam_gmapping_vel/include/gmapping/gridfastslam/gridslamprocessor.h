@@ -312,12 +312,12 @@ namespace GMapping {
   private:
     
     /**scanmatches all the particles*/
-    inline void scanMatch(const ReadingData& plainReading);
+    inline void scanMatch(const double *plainReading, const double* realReading);
     /**normalizes the particle weights*/
     inline void normalize();
     
     // return if a resampling occured or not
-    inline bool resample(const ReadingData& plainReading, int adaptParticles, 
+    inline bool resample(const double* plainReading, int adaptParticles, 
 			 const RangeReading* rr=0);
     
     //tree utilities
