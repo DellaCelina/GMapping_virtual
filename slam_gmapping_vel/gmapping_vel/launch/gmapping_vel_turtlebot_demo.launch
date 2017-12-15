@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+
+<!-- run slam_gmapping_vel system -->
+
+<launch>
+
+    <arg name="gazebo_gui" default="false"/>
+
+    <include file="$(find turtlebot_gazebo)/launch/turtlebot_world.launch">
+    	<arg name="gui" value="$(arg gazebo_gui)" />
+    </include>
+
+    <include file="$(find gmapping_vel)/launch/gmapping_vel.launch"/>
+
+    <include file="$(find gmapping_vel)/launch/gmapping_vel_rviz.launch"/>
+
+</launch>
+
+
+
+
+
+
+
+

@@ -1,0 +1,7 @@
+<launch>
+    <node pkg="gmapping_vel" type="slam_gmapping_vel" name="slam_gmapping_vel" output="screen">
+		<param name="base_frame" value="base_footprint"/>
+		<param name="odom_frame" value="odom"/>
+
+    </node>
+</launch>

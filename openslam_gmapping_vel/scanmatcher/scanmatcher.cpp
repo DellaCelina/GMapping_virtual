@@ -113,7 +113,7 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	m_activeAreaComputed=true;
 }
 */
-void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p, const double* readings){
+void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings){
 	if (m_activeAreaComputed)
 		return;
 	OrientedPoint lp=p;
@@ -131,8 +131,13 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	if (lp.y>max.y) max.y=lp.y;
 	
 	/*determine the size of the area*/
+<<<<<<< HEAD
 	const double * angle=m_laserAngles+m_initialBeamsSkip+m_relMin;
 	for (const double* r=readings+m_initialBeamsSkip+m_relMin; r<=readings+m_relMax; r++, angle++){
+=======
+	const double * angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<=readings.realReading+readings.real_max; r++, angle++){
+>>>>>>> master
 		if (*r>m_laserMaxRange||*r==0.0||isnan(*r)) continue;
 		double d=*r>m_usableRange?m_usableRange:*r;
 		Point phit=lp;
@@ -161,8 +166,13 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	
 	HierarchicalArray2D<PointAccumulator>::PointSet activeArea;
 	/*allocate the active area*/
+<<<<<<< HEAD
 	angle=m_laserAngles+m_initialBeamsSkip+m_relMin;
 	for (const double* r=readings+m_initialBeamsSkip+m_relMin; r<=readings+m_relMax; r++, angle++)
+=======
+	angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<readings.realReading+readings.real_max; r++, angle++)
+>>>>>>> master
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
@@ -212,7 +222,7 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	m_activeAreaComputed=true;
 }
 
-double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, const double* readings){
+double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings){
 	if (!m_activeAreaComputed)
 		computeActiveArea(map, p, readings);
 		
@@ -226,9 +236,15 @@ double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, co
 	IntPoint p0=map.world2map(lp);
 	
 	
+<<<<<<< HEAD
 	const double * angle=m_laserAngles+m_initialBeamsSkip+m_relMin;
 	double esum=0;
 	for (const double* r=readings+m_initialBeamsSkip+m_relMin; r<=readings+m_relMax; r++, angle++)
+=======
+	const double * angle=m_laserAngles+readings.real_min+m_initialBeamsSkip;
+	double esum=0;
+	for (const double* r=readings.realReading+readings.real_min+m_initialBeamsSkip; r<=readings.realReading+readings.real_max; r++, angle++)
+>>>>>>> master
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
@@ -316,9 +332,9 @@ void ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, cons
 
 */
 
-double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
+double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const ReadingData& readings) const{
 	double currentScore;
-	double sc=score(map, init, readings);;
+	double sc=score(map, init, readings);
 	OrientedPoint start=init;
 	pnew=init;
 	int iterations=0;
@@ -334,7 +350,7 @@ double ScanMatcher::icpOptimize(OrientedPoint& pnew, const ScanMatcherMap& map, 
 	return currentScore;
 }
 
-double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
+double ScanMatcher::optimize(OrientedPoint& pnew, const ScanMatcherMap& map, const OrientedPoint& init, const ReadingData& readings) const{
 	double bestScore=-1;
 	OrientedPoint currentPose=init;
 	double currentScore=score(map, currentPose, readings);
@@ -427,7 +443,7 @@ struct ScoredMove{
 
 typedef std::list<ScoredMove> ScoredMoveList;
 
-double ScanMatcher::optimize(OrientedPoint& _mean, ScanMatcher::CovarianceMatrix& _cov, const ScanMatcherMap& map, const OrientedPoint& init, const double* readings) const{
+double ScanMatcher::optimize(OrientedPoint& _mean, ScanMatcher::CovarianceMatrix& _cov, const ScanMatcherMap& map, const OrientedPoint& init, const ReadingData& readings) const{
 	ScoredMoveList moveList;
 	double bestScore=-1;
 	OrientedPoint currentPose=init;
@@ -584,7 +600,7 @@ double ScanMatcher::likelihood
 		ScoredMove sm;
 		sm.pose=rp;
 		
-		likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
+		//likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
 		moveList.push_back(sm);
 	}
 	
@@ -653,7 +669,7 @@ double ScanMatcher::likelihood
 		ScoredMove sm;
 		sm.pose=rp;
 		
-		likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
+		//likelihoodAndScore(sm.score, sm.likelihood, map, rp, readings);
 		sm.likelihood+=odometry.eval(rp)/gain;
 		assert(!isnan(sm.likelihood));
 		moveList.push_back(sm);
