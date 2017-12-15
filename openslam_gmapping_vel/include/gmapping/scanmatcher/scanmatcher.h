@@ -69,6 +69,10 @@ class ScanMatcher{
 		PARAM_SET_GET(double, linearOdometryReliability, protected, public, public)
 		PARAM_SET_GET(double, freeCellRatio, protected, public, public)
 		PARAM_SET_GET(unsigned int, initialBeamsSkip, protected, public, public)
+		PARAM_SET_GET(int, virMin, protected, public, public)
+		PARAM_SET_GET(int, virMax, protected, public, public)
+		PARAM_SET_GET(int, relMin, protected, public, public)
+		PARAM_SET_GET(int, relMax, protected, public, public)
 
 		// allocate this large array only once
 		IntPoint* m_linePoints;
@@ -143,14 +147,14 @@ inline double ScanMatcher::icpStep(OrientedPoint & pret, const ScanMatcherMap& m
 
 inline double ScanMatcher::score(const ScanMatcherMap& map, const OrientedPoint& p, const double* readings) const{
 	double s=0;
-	const double * angle=m_laserAngles+m_initialBeamsSkip;
+	const double * angle=m_laserAngles+m_initialBeamsSkip+m_virMin;
 	OrientedPoint lp=p;
 	lp.x+=cos(p.theta)*m_laserPose.x-sin(p.theta)*m_laserPose.y;
 	lp.y+=sin(p.theta)*m_laserPose.x+cos(p.theta)*m_laserPose.y;
 	lp.theta+=m_laserPose.theta;
 	unsigned int skip=0;
 	double freeDelta=map.getDelta()*m_freeCellRatio;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++){
+	for (const double* r=readings+m_initialBeamsSkip+m_virMin; r<=readings+m_virMax; r++, angle++){
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (skip||*r>m_usableRange||*r==0.0) continue;
@@ -194,7 +198,7 @@ inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const 
 	using namespace std;
 	l=0;
 	s=0;
-	const double * angle=m_laserAngles+m_initialBeamsSkip;
+	const double * angle=m_laserAngles+m_initialBeamsSkip+m_virMin;
 	OrientedPoint lp=p;
 	lp.x+=cos(p.theta)*m_laserPose.x-sin(p.theta)*m_laserPose.y;
 	lp.y+=sin(p.theta)*m_laserPose.x+cos(p.theta)*m_laserPose.y;
@@ -203,7 +207,7 @@ inline unsigned int ScanMatcher::likelihoodAndScore(double& s, double& l, const 
 	unsigned int skip=0;
 	unsigned int c=0;
 	double freeDelta=map.getDelta()*m_freeCellRatio;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++){
+	for (const double* r=readings+m_initialBeamsSkip+m_virMin; r<=readings+m_virMax; r++, angle++){
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (*r>m_usableRange) continue;

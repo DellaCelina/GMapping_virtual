@@ -5,6 +5,7 @@
 #include <set>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <gmapping/utils/stat.h>
 #include <gmapping/gridfastslam/gridslamprocessor.h>
 
@@ -403,10 +404,19 @@ void GridSlamProcessor::setMotionModelParameters
       
       //this is for converting the reading in a scan-matcher feedable form
       assert(reading.size()==m_beams);
+      m_relMin = reading.getMinBeamIdx();
+      m_relMax = reading.getMaxBeamIdx();
+      m_virMin = reading.getMinVirtualBeamIdx();
+      m_virMax = reading.getMaxVirtualBeamIdx();
+      m_matcher.setvirMin(m_virMin);
+      m_matcher.setvirMax(m_virMax);
+      m_matcher.setrelMin(m_relMin);
+      m_matcher.setrelMax(m_relMax);
       double * plainReading = new double[m_beams];
       double * realReading = new double[m_beams];
       for(unsigned int i=0; i<m_beams; i++){
-	plainReading[i]=reading[i];
+        plainReading[i]=reading[i];
+        //std::cout <<"virtual " <<i << " : " << plainReading[i] << std::endl;
       }
       m_infoStream << "m_count " << m_count << endl;
 
@@ -414,17 +424,23 @@ void GridSlamProcessor::setMotionModelParameters
         if(i >= reading.getMinBeamIdx() && i <= reading.getMaxBeamIdx())
           realReading[i] = reading[i];
         else 
-          realReading[i] = (double)getlaserMaxRange() + 0.1;
+          realReading[i] = (double)getlaserMaxRange() + 0.01;
+          //std::cout << "real " << i << " : " << realReading[i] << std::endl;
       }
       RangeReading* reading_copy = 
               new RangeReading(reading.size(),
-                                  reading.getMinBeamIdx(),
-                                  reading.getMaxBeamIdx(),
-                                  reading.getMinVirtualBeamIdx(),
-                                  reading.getMaxVirtualBeamIdx(),
+                                  m_relMin,
+                                  m_relMax,
+                                  m_virMin,
+                                  m_virMax,
                                   realReading,
                                static_cast<const RangeSensor*>(reading.getSensor()),
                                reading.getTime());
+      /*
+      for(int i = 0; i<m_beams; i++){
+        std::cout << "reading copy " << i << " : " << (*reading_copy)[i] << std::endl;
+      }
+      */
 
       if (m_count>0){
 	scanMatch(plainReading, realReading);

@@ -269,6 +269,7 @@ namespace GMapping {
       
     //state
     int  m_count, m_readingCount;
+    int m_virMin, m_virMax, m_relMin, m_relMax;
     OrientedPoint m_lastPartPose;
     OrientedPoint m_odoPose;
     OrientedPoint m_pose;

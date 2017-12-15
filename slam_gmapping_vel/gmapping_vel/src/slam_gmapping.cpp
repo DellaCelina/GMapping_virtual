@@ -795,6 +795,13 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
                                   min_laser_angles_index_-right_virtual_points_num,
                                   max_laser_angles_index_+left_virtual_points_num);
 
+  /*printf("ranges : \n");
+  for(unsigned int i = 0; i<gsp_laser_beam_count_; i++){
+    //if(i >= min_laser_angles_index_ - right_virtual_points_num && i<= max_laser_angles_index_ + left_virtual_points_num)
+      printf("%d : %lf\n", i, ranges_double[i]);
+  }
+  */
+
   // ...but it deep copies them in RangeReading constructor, so we don't
   // need to keep our array around.
   delete[] ranges_double;
@@ -809,10 +816,10 @@ SlamGMapping::addScan(const sensor_msgs::LaserScan& scan, GMapping::OrientedPoin
             gmap_pose.theta);
             */
   //printf("processing scan\n");
-  //bool ret = gsp_->processScan(reading);
-  //printf("processing scan result : %d\n", ret);
-  //return ret;
-  return true;
+  bool ret = gsp_->processScan(reading);
+  printf("processing scan result : %d\n", ret);
+  return ret;
+  //return true;
 }
 
 

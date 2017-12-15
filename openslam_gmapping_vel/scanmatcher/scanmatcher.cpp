@@ -131,8 +131,8 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	if (lp.y>max.y) max.y=lp.y;
 	
 	/*determine the size of the area*/
-	const double * angle=m_laserAngles+m_initialBeamsSkip;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++){
+	const double * angle=m_laserAngles+m_initialBeamsSkip+m_relMin;
+	for (const double* r=readings+m_initialBeamsSkip+m_relMin; r<=readings+m_relMax; r++, angle++){
 		if (*r>m_laserMaxRange||*r==0.0||isnan(*r)) continue;
 		double d=*r>m_usableRange?m_usableRange:*r;
 		Point phit=lp;
@@ -161,8 +161,8 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	
 	HierarchicalArray2D<PointAccumulator>::PointSet activeArea;
 	/*allocate the active area*/
-	angle=m_laserAngles+m_initialBeamsSkip;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++)
+	angle=m_laserAngles+m_initialBeamsSkip+m_relMin;
+	for (const double* r=readings+m_initialBeamsSkip+m_relMin; r<=readings+m_relMax; r++, angle++)
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
@@ -226,9 +226,9 @@ double ScanMatcher::registerScan(ScanMatcherMap& map, const OrientedPoint& p, co
 	IntPoint p0=map.world2map(lp);
 	
 	
-	const double * angle=m_laserAngles+m_initialBeamsSkip;
+	const double * angle=m_laserAngles+m_initialBeamsSkip+m_relMin;
 	double esum=0;
-	for (const double* r=readings+m_initialBeamsSkip; r<readings+m_laserBeams; r++, angle++)
+	for (const double* r=readings+m_initialBeamsSkip+m_relMin; r<=readings+m_relMax; r++, angle++)
 		if (m_generateMap){
 			double d=*r;
 			if (d>m_laserMaxRange||d==0.0||isnan(d))
