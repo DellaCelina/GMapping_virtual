@@ -8,6 +8,7 @@
 #include <iostream>
 #include <gmapping/utils/gvalues.h>
 #include <vector>
+#include <limits>
 // #define LASER_MAXBEAMS 2048
 #define LASER_MAXBEAMS 4096
 
