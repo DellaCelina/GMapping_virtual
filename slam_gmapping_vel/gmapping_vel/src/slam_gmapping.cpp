@@ -1010,7 +1010,7 @@ SlamGMapping::updateMap(const sensor_msgs::LaserScan& scan)
   boost::mutex::scoped_lock map_lock (map_mutex_);
   GMapping::ScanMatcher matcher;
 
-  matcher.setLaserParameters(scan.ranges.size(), &(laser_angles_[0]),
+  matcher.setLaserParameters(gsp_laser_beam_count_, &(laser_angles_[0]),
                              gsp_laser_->getPose());
 
   matcher.setlaserMaxRange(maxRange_);
