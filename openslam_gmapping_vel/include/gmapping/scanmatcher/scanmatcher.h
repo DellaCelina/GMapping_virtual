@@ -90,7 +90,7 @@ inline double ScanMatcher::icpStep(OrientedPoint & pret, const ScanMatcherMap& m
 	double freeDelta=map.getDelta()*m_freeCellRatio;
 	std::list<PointPair> pairs;
 	
-	for (const double* r=readings+m_realMin_m_initialBeamsSkip; r<readings+m_realMax; r++, angle++){
+	for (const double* r=readings+m_relMin+m_initialBeamsSkip; r<readings+m_relMax; r++, angle++){
 		skip++;
 		skip=skip>m_likelihoodSkip?0:skip;
 		if (*r>m_usableRange||*r==0.0) continue;

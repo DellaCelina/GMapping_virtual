@@ -113,7 +113,7 @@ void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p,
 	m_activeAreaComputed=true;
 }
 */
-void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p, const ReadingData& readings){
+void ScanMatcher::computeActiveArea(ScanMatcherMap& map, const OrientedPoint& p, const double* readings){
 	if (m_activeAreaComputed)
 		return;
 	OrientedPoint lp=p;
